@@ -2,11 +2,13 @@
 #include <SPI.h>
 #include "LCD_Functions.h"
 
+const int pin_button = 12;
 const int pin_A = 8;  // pin 12
 const int pin_B = 4;  // pin 11
 unsigned char encoder_A;
 unsigned char encoder_B;
 unsigned char encoder_A_prev=0;
+boolean butstate = false;
 
 int i2c_address_but8LED[8] = {0,0,0,0,0,0,0,0};
 
@@ -20,11 +22,18 @@ void setup()
   pinMode(9, OUTPUT);
   pinMode(pin_A, INPUT_PULLUP);
   pinMode(pin_B, INPUT_PULLUP);
+  pinMode(pin_button, INPUT);
   
   lcdBegin(); // This will setup our pins, and initialize the LCD
   updateDisplay(); // with displayMap untouched, SFE logo
   setContrast(60); // Good values range from 40-60
-  delay(2000);
+  delay(1000);
+  
+  clearDisplay(WHITE);
+  updateDisplay();
+  setStr("start scan...",0,0,BLACK);
+  updateDisplay();
+  scan_i2c()
   
   clearDisplay(WHITE);
   updateDisplay();
@@ -35,11 +44,22 @@ void setup()
   updateDisplay();
 }
 
+void main_menu()
+{
+  clearDisplay(WHITE);
+  updateDisplay();
+  setStr("LOAD CONFIG", 2, 2, BLACK);
+  setStr("SET MODULE", 2, 17, BLACK);
+  setStr("SCAN MODULES", 2, 32, BLACK);
+  setRect(0, 0, 40, 12, 0, BLACK);
+  updateDisplay();
+}
+
 void scan_i2c()
 {
-  
-for(address = 1; address < 16; address++ ) 
-{
+  int nDevices = 0;
+  for(address = 1; address < 16; address++ ) 
+  {
     // The i2c_scanner uses the return value of
     // the Write.endTransmisstion to see if
     // a device did acknowledge to the address.
@@ -48,27 +68,42 @@ for(address = 1; address < 16; address++ )
 
     if (error == 0)
     {
+      i2c_address_but8LED[nDevices] = address;
       clearDisplay(WHITE);
       updateDisplay();
       setStr("found module ",0,0,BLACK);
       setStr(address,10,10,BLACK);
+      updateDisplay();
       nDevices++;
+      delay(2000);
     }
     else if (error==4) 
     {
-      Serial.print("Unknow error at address 0x");
-      if (address<16) 
-        Serial.print("0");
-      Serial.println(address,HEX);
+      clearDisplay(WHITE);
+      updateDisplay();
+      setStr("error module ",0,0,BLACK);
+      setStr(address,10,10,BLACK);
+      updateDisplay();
+      delay(2000);
     }    
   }
   if (nDevices == 0)
-    Serial.println("No I2C devices found\n");
-  else
-    Serial.println("done\n");
+  {
+    clearDisplay(WHITE);
+    updateDisplay();
+    setStr("no module",0,0,BLACK);
+    updateDisplay();
+  }
 }
 
-void select_mode(int sens)
+void update_menu(int mode)
+{
+  Wire.beginTransmission(1);
+  Wire.write(mode);
+  Wire.endTransmission();
+}
+
+void select_menu(int sens)
 {
   if(sens==1 && mode<3)
   {
@@ -85,9 +120,6 @@ void select_mode(int sens)
       setRect(0, 30, 40, 42, 0, BLACK);
       updateDisplay();
     }
-    Wire.beginTransmission(1);
-    Wire.write(mode);
-    Wire.endTransmission();
   }
   if(sens==-1 && mode>1)
   {
@@ -104,9 +136,6 @@ void select_mode(int sens)
       setRect(0, 0, 40, 12, 0, BLACK);
       updateDisplay();
     }
-    Wire.beginTransmission(1);
-    Wire.write(mode);
-    Wire.endTransmission();
   }
 }
 
@@ -155,4 +184,15 @@ int ReadRotary()
   }
   encoder_A_prev = encoder_A;
   return ret;
+}
+
+boolean butpressed()
+{
+  if(digitalRead(pin_button) && !butstate)
+  {
+    butstate = true;
+    return true;
+  }
+  if(!digitalRead(pin_button) && butstate) butstate = false;
+  return false;
 }
