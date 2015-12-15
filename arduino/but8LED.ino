@@ -87,9 +87,7 @@ void ButPress(unsigned char numBut)
   {
     case 0:
       digitalWrite(latchPin, 0);
-      //red LEDs
       shiftOut(dataPin, clockPin,  1<<LED_shiftout[numBut]);
-      //no longer needs to listen for information
       digitalWrite(latchPin, 1);
       message[1] = numBut;
       message[2] = 1;
@@ -111,6 +109,15 @@ void ButPress(unsigned char numBut)
       message[2] = LEDState[numBut];
       send_state = true;
       break;
+      
+    case 2:
+      digitalWrite(latchPin, 0);
+      shiftOut(dataPin, clockPin,  1<<LED_shiftout[numBut]);
+      digitalWrite(latchPin, 1);
+      message[1] = numBut;
+      message[2] = 1;
+      send_state = true;
+      break;
   }
 }
 
@@ -123,6 +130,16 @@ void ButRelease(unsigned char numBut)
   
   case 0:
 	break;
+  case 1:
+	break;
+  case 2:
+      digitalWrite(latchPin, 0);
+      shiftOut(dataPin, clockPin,  0);
+      digitalWrite(latchPin, 1);
+      message[1] = numBut;
+      message[2] = 1;
+      send_state = true;
+      break;
   }
 }
  
