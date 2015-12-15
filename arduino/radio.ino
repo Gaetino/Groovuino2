@@ -8,6 +8,8 @@ unsigned char encoder_A;
 unsigned char encoder_B;
 unsigned char encoder_A_prev=0;
 
+int i2c_address_but8LED[8] = {0,0,0,0,0,0,0,0};
+
 int mode = 1;
 
 void setup()
@@ -31,6 +33,39 @@ void setup()
   setStr("MODE 3", 2, 32, BLACK);
   setRect(0, 0, 40, 12, 0, BLACK);
   updateDisplay();
+}
+
+void scan_i2c()
+{
+  
+for(address = 1; address < 16; address++ ) 
+{
+    // The i2c_scanner uses the return value of
+    // the Write.endTransmisstion to see if
+    // a device did acknowledge to the address.
+    Wire.beginTransmission(address);
+    error = Wire.endTransmission();
+
+    if (error == 0)
+    {
+      clearDisplay(WHITE);
+      updateDisplay();
+      setStr("found module ",0,0,BLACK);
+      setStr(address,10,10,BLACK);
+      nDevices++;
+    }
+    else if (error==4) 
+    {
+      Serial.print("Unknow error at address 0x");
+      if (address<16) 
+        Serial.print("0");
+      Serial.println(address,HEX);
+    }    
+  }
+  if (nDevices == 0)
+    Serial.println("No I2C devices found\n");
+  else
+    Serial.println("done\n");
 }
 
 void select_mode(int sens)
@@ -94,6 +129,7 @@ void loop()
   if(changed > 0) 
   {
     Serial1.write(255);
+    Serial1.write()
     Serial1.write(param_number);
     Serial1.write(param_value);
   }
