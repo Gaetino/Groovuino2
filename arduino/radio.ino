@@ -20,6 +20,8 @@ int but8LED_mode[8] = {0,0,0,0,0,0,0,0};
 
 int menu = 1;
 
+boolean config_ok = false;
+
 void setup()
 {
   Wire.begin();        // join i2c bus (address optional for master)
@@ -34,34 +36,33 @@ void setup()
   updateDisplay(); // with displayMap untouched, SFE logo
   setContrast(60); // Good values range from 40-60
   delay(1000);
+
+  load_config(); 
   
-  clearDisplay(WHITE);
-  updateDisplay();
-  setStr("LOAD CONFIG",0,0,BLACK);
-  updateDisplay();
-  delay(1000);
+  scan_but8LED(); 
   
-  if(load_config()) 
-  {
-    clearDisplay(WHITE);
-    updateDisplay();
-    setStr("CONFIG OK",0,0,BLACK);
-    updateDisplay();
-  }
-  else
-  {
-    clearDisplay(WHITE);
-    updateDisplay();
-    setStr("CONFIG KO",0,0,BLACK);
-    updateDisplay();
-  }
-  
+  main_menu();
+}
+
+
+
+boolean scan_but8LED()
+{
   clearDisplay(WHITE);
   setStr("SCAN...",0,0,BLACK);
   updateDisplay();
   delay(2000);
-  
-  if(scan_but8LED()) 
+
+  int ret = true;
+  for(int i=0; i<but8LED_number; i++)
+  {
+    Wire.beginTransmission(but8LED_address[i]);
+    error = Wire.endTransmission();
+
+    if (error==4) ret = false;   
+    delay(1); 
+  }
+  if(ret) 
   {
     clearDisplay(WHITE);
     updateDisplay();
@@ -75,29 +76,18 @@ void setup()
     setStr("MODULES KO",0,0,BLACK);
     updateDisplay();
   }
-  
   delay(2000);
-  
+}
+
+
+load_config()
+{
   clearDisplay(WHITE);
-  main_menu();
-}
-
-boolean scan_but8LED()
-{
-  for(int i=0; i<but8LED_number; i++)
-  {
-    Wire.beginTransmission(but8LED_address[i]);
-    error = Wire.endTransmission();
-
-    if (error==4) return false   
-    delay(1); 
-  }
-  return true;
-}
-
-
-boolean load_config()
-{
+  updateDisplay();
+  setStr("LOAD CONFIG",0,0,BLACK);
+  updateDisplay();
+  delay(1000);
+  
   boolean ret = false;
   Serial1.write(255);
   Serial1.write(0);
@@ -121,7 +111,21 @@ boolean load_config()
       ret = true;
     }
   }
-  return ret;
+  if(ret) 
+  {
+    clearDisplay(WHITE);
+    updateDisplay();
+    setStr("LOAD OK",0,0,BLACK);
+    updateDisplay();
+  }
+  else
+  {
+    clearDisplay(WHITE);
+    updateDisplay();
+    setStr("LOAD KO",0,0,BLACK);
+    updateDisplay();
+  }
+  delay(2000);
 }
 
 void main_menu()
@@ -157,55 +161,6 @@ void list_module()
   setRect(0, 0, 80, 12, 0, BLACK);
   updateDisplay();
 }
-
-/*void scan_i2c()
-{
-  
-  byte error, address;
-  for(address = 1; address < 16; address++ ) 
-  {
-    clearDisplay(WHITE);
-    updateDisplay();
-    setStr("MODULE",0,0,BLACK);
-    setChar(48+address,10,10,BLACK);
-    updateDisplay();
-    // The i2c_scanner uses the return value of
-    // the Write.endTransmisstion to see if
-    // a device did acknowledge to the address.
-    Wire.beginTransmission(address);
-    error = Wire.endTransmission();
-
-    if (error == 0)
-    {
-      i2c_address_but8LED[nDevices] = address;
-      clearDisplay(WHITE);
-      updateDisplay();
-      setStr("FOUND MODULE ",0,0,BLACK);
-      setChar(48+address,10,10,BLACK);
-      updateDisplay();
-      nDevices++;
-      delay(2000);
-    }
-    else if (error==4) 
-    {
-      clearDisplay(WHITE);
-      updateDisplay();
-      setStr("ERROR MODULE ",0,0,BLACK);
-      setChar(48+address,10,10,BLACK);
-      updateDisplay();
-      delay(2000);
-    }   
-    delay(200); 
-  }
-  if (nDevices == 0)
-  {
-    clearDisplay(WHITE);
-    updateDisplay();
-    setStr("NO MODULE",0,0,BLACK);
-    updateDisplay();
-    delay(1000);
-  }
-}*/
 
 void update_menu(int mode)
 {
@@ -252,7 +207,7 @@ void select_menu(int sens)
 
 void loop()
 {
-  for(int i = 0; i<nDevices; i++)
+  for(int i = 0; i<but8LED_number; i++)
   {
     Wire.requestFrom(i2c_address_but8LED[i], 3);    
     delay(2);
@@ -287,7 +242,7 @@ void loop()
     case 3: 
       if(numscreen==0)
       {
-        scan_i2c(); 
+        scan_but8LED(); 
         lignes = 3;
         main_menu();
       }
@@ -328,9 +283,13 @@ void loop()
         lignes = nDevices+1;
         list_module();
       }
-      
       break;
     case 1:
+      if(numscreen==0)
+      {
+        load_config();
+        main_menu();
+      }
       if(numscreen==1)
       {
         menu = 1;
