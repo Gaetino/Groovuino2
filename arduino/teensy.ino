@@ -1,3 +1,7 @@
+int but8LED_num = 0;
+int but8LED_address[8] = {0,0,0,0,0,0,0,0};
+int but8LED_mode[8] = {0,0,0,0,0,0,0,0};
+
 void setup()
 {
   Serial3.begin(9600);  // start serial for output
@@ -5,5 +9,21 @@ void setup()
 
 void loop()
 {
-  while(Serial3.available()) Serial.println(Serial3.read());
+  while(Serial3.available()) 
+  {
+    if(Serial3.read()==255)
+    {
+      if(Serial3.read()==0)
+      {
+        Serial3.write(255);
+        Serial3.write(0);
+        for(int i = 0; i<but8LED_num; i++)
+        {
+          Serial3.write(0);
+          Serial3.write(but8LED_mode[i]);
+          Serial3.write(but8LED_address[i]);
+        }
+      }
+    }
+  }
 }
