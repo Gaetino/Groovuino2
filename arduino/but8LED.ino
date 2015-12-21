@@ -9,7 +9,7 @@ unsigned char satellite_mode = 1; //0 = Exclusif (un seul bouton allumé à la f
 		                  //2 = Exclusif temporaire (un seul bouton allumé uniquement quand on appuie dessus)
 			          //3 = Mode sauvegarde
 
-int i2c_address = 1;
+int i2c_address;
 
 byte message[] = {0,0,0};
 
@@ -38,7 +38,7 @@ byte data = 0;
 int pin_but[8] = {16, 10, 7, 9, 14, 15, 1, 5};
 int LED_shiftout[8] = {5, 4, 1, 0, 7, 6, 3, 2};
 
-
+int pin_selector[4] = {8,11,12,13};
 
 void setup() {
   //set pins to output because they are addressed in the main loop
@@ -59,6 +59,8 @@ void setup() {
   pinMode(19,INPUT_PULLUP);
   pinMode(20,INPUT_PULLUP);
   pinMode(21,INPUT_PULLUP);
+  
+  i2c_address = digitalRead(pin_selector[0]) + digitalRead(pin_selector[1])<<1 + digitalRead(pin_selector[2])<<2 + digitalRead(pin_selector[3])<<3;
 
 }
 
