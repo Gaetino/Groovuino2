@@ -192,5 +192,11 @@ void requestEvent()
 
 void receiveEvent(int howMany)
 {
-  if(Wire.read()==255) satellite_mode = Wire.read()-1;    // receive byte as an integer
+  if(Wire.read()==255)
+  {
+    byte received = Wire.read();
+    if(received==0) satellite_mode = Wire.read();    // receive byte as an integer
+    if(received==1) ButPress(Wire.read());
+    if(received==2) shiftOut(dataPin, clockPin,  0);
+  }
 }
