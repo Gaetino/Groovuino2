@@ -9,7 +9,7 @@ unsigned char satellite_mode = 1; //0 = Exclusif (un seul bouton allumé à la f
 		                  //2 = Exclusif temporaire (un seul bouton allumé uniquement quand on appuie dessus)
 			          //3 = Mode sauvegarde
 
-int i2c_address;
+int i2c_address ;
 
 byte message[] = {0,0,0};
 
@@ -38,7 +38,7 @@ byte data = 0;
 int pin_but[8] = {16, 10, 7, 9, 14, 15, 1, 5};
 int LED_shiftout[8] = {5, 4, 1, 0, 7, 6, 3, 2};
 
-int pin_selector[4] = {8,11,12,13};
+int pin_selector[4] = {A3,A2,A1,A0};
 
 void setup() {
   //set pins to output because they are addressed in the main loop
@@ -59,14 +59,23 @@ void setup() {
   pinMode(19,INPUT_PULLUP);
   pinMode(20,INPUT_PULLUP);
   pinMode(21,INPUT_PULLUP);
-  
-  i2c_address = digitalRead(pin_selector[0]) + digitalRead(pin_selector[1])<<1 + digitalRead(pin_selector[2])<<2 + digitalRead(pin_selector[3])<<3;
 
+  for(int i = 0; i<4; i++)
+  {
+    pinMode(pin_selector[i],INPUT_PULLUP);
+  }
+  i2c_address = (1-digitalRead(pin_selector[0])) + ((1-digitalRead(pin_selector[1]))<<1) + ((1-digitalRead(pin_selector[2]))<<2) + ((1-digitalRead(pin_selector[3]))<<3);
+  
 }
 
 void loop() {
   
-  
+  if(Serial.available())
+  {
+    Serial.read();
+    Serial.print("adrese : ");
+    Serial.println(i2c_address);
+  }
   for(int i=0; i<8 ; i++)
   {
     if(!digitalRead(pin_but[i]) && !ButState[i]) 
@@ -192,11 +201,5 @@ void requestEvent()
 
 void receiveEvent(int howMany)
 {
-  if(Wire.read()==255)
-  {
-    byte received = Wire.read();
-    if(received==0) satellite_mode = Wire.read();    // receive byte as an integer
-    if(received==1) ButPress(Wire.read());
-    if(received==2) shiftOut(dataPin, clockPin,  0);
-  }
+  if(Wire.read()==255) satellite_mode = Wire.read();    // receive byte as an integer
 }
