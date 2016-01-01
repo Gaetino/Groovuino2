@@ -21,11 +21,16 @@ int but8LED_mode[8] = {0,0,0,0,0,0,0,0};
 int menu = 1;
 
 boolean config_ok = false;
+boolean config_loaded = false;
+boolean refresh_menu = false;
+
+boolean module_ok[8] = {1,1,1,1,1,1,1,1};
 
 void setup()
 {
   Wire.begin();        // join i2c bus (address optional for master)
   Serial1.begin(9600);  // start serial for output
+  Serial.begin(9600);
   
   pinMode(9, OUTPUT);
   pinMode(pin_A, INPUT_PULLUP);
@@ -35,83 +40,107 @@ void setup()
   lcdBegin(); // This will setup our pins, and initialize the LCD
   updateDisplay(); // with displayMap untouched, SFE logo
   setContrast(60); // Good values range from 40-60
-  delay(1000);
+  delay(3000);
 
   load_config(); 
-  
-  scan_but8LED(); 
   
   main_menu();
 }
 
-
-
-boolean scan_but8LED()
+void upload_modules()
 {
   clearDisplay(WHITE);
-  setStr("SCAN...",0,0,BLACK);
+  updateDisplay();
+  setStr("UP MODULES",0,0,BLACK);
   updateDisplay();
   delay(2000);
-
-  int ret = true;
+  
   for(int i=0; i<but8LED_number; i++)
   {
-    Wire.beginTransmission(but8LED_address[i]);
-    error = Wire.endTransmission();
-
-    if (error==4) ret = false;   
-    delay(1); 
+    write_module(but8LED_address[i],but8LED_mode[i]);
   }
-  if(ret) 
-  {
-    clearDisplay(WHITE);
-    updateDisplay();
-    setStr("MODULES OK",0,0,BLACK);
-    updateDisplay();
-  }
-  else
-  {
-    clearDisplay(WHITE);
-    updateDisplay();
-    setStr("MODULES KO",0,0,BLACK);
-    updateDisplay();
-  }
-  delay(2000);
 }
 
 
-load_config()
+boolean listen_config()
+{
+  boolean ret = false;
+  
+  if(Serial1.available())
+  {
+    int bibi = Serial1.read();
+    Serial.println(bibi);
+    if(bibi==255)
+    {
+      delay(10);
+      int bibi3 = Serial1.read();
+      Serial.println(bibi3);
+      if(bibi3==0)
+      {
+        int i = 0;
+        delay(50);
+        clearDisplay(WHITE);
+        updateDisplay();
+        setStr("LOAD CONFIG",0,0,BLACK);
+        updateDisplay();
+        refresh_menu=true;
+
+        while(Serial1.available())
+        {
+          delay(10);
+          int bibi2 = Serial1.read();
+          Serial.print("received : ");
+          Serial.println(bibi2);
+          if(bibi2==0)
+          {
+            delay(10);
+            but8LED_address[i] = Serial1.read();
+            Serial.print("add : ");
+            Serial.println(but8LED_address[i]);
+            delay(10);
+            but8LED_mode[i] = Serial1.read();
+            Serial.print("mode : ");
+            Serial.println(but8LED_mode[i]);
+            i++;
+          }
+        }
+        delay(1000);
+        but8LED_number = i;
+        ret = true;
+      }
+    }
+  }
+  
+  return ret;
+}
+
+void load_config()
 {
   clearDisplay(WHITE);
   updateDisplay();
   setStr("LOAD CONFIG",0,0,BLACK);
   updateDisplay();
-  delay(1000);
   
-  boolean ret = false;
   Serial1.write(255);
   Serial1.write(0);
-  while(!Serial1.available());
-  delay(1);
-  if(Serial1.Read()==255)
+  
+  delay(100);
+   
+  if(!Serial1.available())
   {
-    if(Serial1.Read()==0)
-    {
-      int i = 0;
-      while(Serial1.available())
-      {
-        if(Serial1.read()==0)
-        {
-          but8LED_address[i] = Serial1.read();
-          but8LED_mode[i] = Serial1.read();
-          i++;
-        }
-      }
-      but8LED_number = i;
-      ret = true;
-    }
+    clearDisplay(WHITE);
+    updateDisplay();
+    setStr("MAINBOARD",0,0,BLACK);
+    setStr("   NOT",0,15,BLACK);
+    setStr("RESPONDING",0,30,BLACK);
+    updateDisplay();
+    delay(2000);
+    return;
   }
-  if(ret) 
+  
+  boolean conf = listen_config();
+  
+  if(conf) 
   {
     clearDisplay(WHITE);
     updateDisplay();
@@ -125,6 +154,8 @@ load_config()
     setStr("LOAD KO",0,0,BLACK);
     updateDisplay();
   }
+  
+  config_loaded = true;
   delay(2000);
 }
 
@@ -134,7 +165,7 @@ void main_menu()
   updateDisplay();
   setStr("LOAD CONFIG", 2, 2, BLACK);
   setStr("SET MODULE", 2, 17, BLACK);
-  setStr("SCAN MODULES", 2, 32, BLACK);
+  setStr("PLAY", 2, 32, BLACK);
   setRect(0, 0, 80, 12, 0, BLACK);
   updateDisplay();
 }
@@ -155,9 +186,9 @@ void list_module()
   clearDisplay(WHITE);
   updateDisplay();
   setStr("RETOUR", 2, 2, BLACK);
-  if(nDevices > 0) setStr("MODULE 1", 2, 17, BLACK);
-  if(nDevices > 1) setStr("MODULE 2", 2, 32, BLACK);
-  if(nDevices > 0) setRect(0, 0, 80, 12, 0, BLACK);
+  if(but8LED_number > 0) setStr("MODULE 1", 2, 17, BLACK);
+  if(but8LED_number > 1) setStr("MODULE 2", 2, 32, BLACK);
+  if(but8LED_number > 0) setRect(0, 0, 80, 12, 0, BLACK);
   setRect(0, 0, 80, 12, 0, BLACK);
   updateDisplay();
 }
@@ -205,32 +236,90 @@ void select_menu(int sens)
   }
 }
 
-void loop()
+void write_module(byte module_num, byte mode_num)
 {
+  Serial.print("adresse : ");
+  Serial.println(module_num);
+  Wire.beginTransmission(module_num);
+  Wire.write(255);
+  Serial.print("mode : ");
+  Serial.println(mode_num);
+  Wire.write(mode_num);
+  Wire.endTransmission();
+}
+boolean modules_valides()
+{
+  boolean ret = 1;
   for(int i = 0; i<but8LED_number; i++)
   {
-    Wire.requestFrom(i2c_address_but8LED[i], 3);    
-    delay(2);
-  
-    byte changed = 0;
-    byte param_number = 0;
-    byte param_value = 0; 
-  
-    while(Wire.available())    // slave may send less than requested
-    { 
-      changed = Wire.read();
-      param_number = Wire.read();
-      param_value = Wire.read();
-    }
-  
-    if(changed > 0) 
+   ret *= module_ok[i];  
+  }
+  return ret;
+}
+
+void loop()
+{
+  if(config_loaded) listen_config();
+  if(refresh_menu) {upload_modules(); main_menu(); refresh_menu=false;}
+
+  if(modules_valides())
+  {
+    for(int i = 0; i<but8LED_number; i++)
     {
-      Serial1.write(255);
-      Serial1.write(i2c_address_but8LED[i]);
-      Serial1.write(param_number);
-      Serial1.write(param_value);
+      Wire.requestFrom(but8LED_address[i], 3);    
+      delay(2);
+      
+      byte changed = 0;
+      byte param_number = 0;
+      byte param_value = 0; 
+      
+      if(Wire.available())    // slave may send less than requested
+      { 
+        module_ok[i] = true;
+        changed = Wire.read();
+        param_number = Wire.read();
+        param_value = Wire.read();
+        if(changed > 0) 
+        {
+          Serial1.write(255);
+          Serial1.write(1);
+          Serial1.write(i);
+          Serial1.write(param_number);
+          Serial1.write(param_value);
+        }
+        delay(1);
+      }
+      else
+      {
+        module_ok[i] = false;
+        clearDisplay(WHITE);
+        updateDisplay();
+        setStr("MODULES KO",0,0,BLACK);
+        updateDisplay();
+      } 
+    }  
+  }
+  else
+  {
+    int ret = true;
+    for(int i=0; i<but8LED_number; i++)
+    {
+      Wire.beginTransmission(but8LED_address[i]);
+      int error = Wire.endTransmission();
+      if (error==0) module_ok[i] = true;
+      else  module_ok[i] = false;
+      delay(1); 
+    }  
+    if(modules_valides())
+    {
+      clearDisplay(WHITE);
+      updateDisplay();
+      setStr("MODULES OK",0,0,BLACK);
+      updateDisplay();
+      delay(2000);
+      upload_modules();
+      main_menu();
     }
-    delay(1);
   }
   
   int rot = ReadRotary();
@@ -242,16 +331,11 @@ void loop()
     case 3: 
       if(numscreen==0)
       {
-        scan_but8LED(); 
-        lignes = 3;
         main_menu();
       }
       if(numscreen==2)
       {
-        Wire.beginTransmission(1);
-        Wire.write(255);
-        Wire.write(2);
-        Wire.endTransmission();
+        write_module(but8LED_address[0],1);
       }
       if(numscreen==1)
       {
@@ -264,10 +348,7 @@ void loop()
     case 2:
       if(numscreen==2)
       {
-        Wire.beginTransmission(1);
-        Wire.write(255);
-        Wire.write(1);
-        Wire.endTransmission();
+        writae_module(but8LED_address[0],0);
       }
       if(numscreen==1)
       {
@@ -280,7 +361,7 @@ void loop()
       {
         menu = 1;
         numscreen = 1;
-        lignes = nDevices+1;
+        lignes = but8LED_number+1;
         list_module();
       }
       break;
@@ -297,12 +378,11 @@ void loop()
         lignes = 3;
         main_menu();
       }
-      break;
       if(numscreen==2)
       {
         menu = 1;
         numscreen = 1;
-        lignes = nDevices+1;
+        lignes = but8LED_number+1;
         list_module();
       }
       break;
