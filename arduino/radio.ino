@@ -18,6 +18,9 @@ int but8LED_number = 0;
 int but8LED_address[8] = {0,0,0,0,0,0,0,0};
 int but8LED_mode[8] = {0,0,0,0,0,0,0,0};
 
+int multi_type;
+int line_up_mode, line_down_mode;
+
 int menu = 1;
 
 boolean config_ok = false;
@@ -107,6 +110,16 @@ boolean listen_config()
         delay(1000);
         but8LED_number = i;
         ret = true;
+      }
+      if(bibi3==1)
+      {
+        int nb_modules = Serial1.read();
+        multi_type = Serial1.read();
+        if(multi_type==0) {line_up_mode = Serial1.read(); line_down_mode = Serial1.read();}
+        for(int i = 0; i<nb_modules; i++)
+        {
+          but8LED_address[i] = Serial1.read();
+        }
       }
     }
   }
