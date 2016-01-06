@@ -21,6 +21,7 @@ int but8LED_mode[8] = {0,0,0,0,0,0,0,0};
 boolean multi_active;
 int multi_type;
 int line_up_mode, line_down_mode;
+int line_up_on, line_down_on;
 
 int menu = 1;
 
@@ -298,7 +299,10 @@ void loop()
         {
           if(multi_active)
           {
-            
+            if(param_number<4)
+            {
+              if(line_up_mode==0)
+            }
           }
           else
           {
