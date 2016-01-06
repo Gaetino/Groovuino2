@@ -18,6 +18,7 @@ int but8LED_number = 0;
 int but8LED_address[8] = {0,0,0,0,0,0,0,0};
 int but8LED_mode[8] = {0,0,0,0,0,0,0,0};
 
+boolean multi_active;
 int multi_type;
 int line_up_mode, line_down_mode;
 
@@ -113,17 +114,18 @@ boolean listen_config()
       }
       if(bibi3==1)
       {
+        multi_active = true;
         int nb_modules = Serial1.read();
         multi_type = Serial1.read();
         if(multi_type==0) {line_up_mode = Serial1.read(); line_down_mode = Serial1.read();}
         for(int i = 0; i<nb_modules; i++)
         {
           but8LED_address[i] = Serial1.read();
+          but8LED_mode[i] = 1;
         }
       }
     }
   }
-  
   return ret;
 }
 
@@ -294,11 +296,18 @@ void loop()
         param_value = Wire.read();
         if(changed > 0) 
         {
-          Serial1.write(255);
-          Serial1.write(1);
-          Serial1.write(i);
-          Serial1.write(param_number);
-          Serial1.write(param_value);
+          if(multi_active)
+          {
+            
+          }
+          else
+          {
+            Serial1.write(255);
+            Serial1.write(1);
+            Serial1.write(i);
+            Serial1.write(param_number);
+            Serial1.write(param_value);
+          }
         }
         delay(1);
       }
