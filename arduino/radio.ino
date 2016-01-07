@@ -21,7 +21,9 @@ int but8LED_mode[8] = {0,0,0,0,0,0,0,0};
 boolean multi_active;
 int multi_type;
 int line_up_mode, line_down_mode;
-int line_up_on, line_down_on;
+int line_up_lighted, line_down_lighted;
+int module_lighted_up, param_lighted_up;
+int module_lighted_down, param_lighted_down;
 
 int menu = 1;
 
@@ -273,14 +275,26 @@ boolean modules_valides()
   return ret;
 }
 
-void loop()
+void multi_param()
 {
-  if(config_loaded) listen_config();
-  if(refresh_menu) {upload_modules(); main_menu(); refresh_menu=false;}
+  Wire.beginTransmission(but8LED_address[module_lighted]);
+  Wire.write(255);
+  Wire.write(1);
+  Wire.write(param_lighted);
+  Wire.endTransmission();
+}
 
-  if(modules_valides())
-  {
-    for(int i = 0; i<but8LED_number; i++)
+void transco_multi(int num, boolean line_choice)
+{
+  // line up
+  if(line_chcoice)  {param_lighted_up = num%4; module_lighted_up = num/4;}
+  // line down
+  else {param_lighted_down = 4 + num%4; module_lighted_down = num/4;}
+}
+
+void listen_modules()
+{
+  for(int i = 0; i<but8LED_number; i++)
     {
       Wire.requestFrom(but8LED_address[i], 3);    
       delay(2);
@@ -302,6 +316,28 @@ void loop()
             if(param_number<4)
             {
               if(line_up_mode==0)
+              {
+                multi_param();
+                transco_multi(line_up_lighted, 1);
+                multi_param();
+              }
+              else
+              {
+                multi_param();
+              }
+            }
+            else
+            {
+              if(line_down_mode==0)
+              {
+                multi_param();
+                transco_multi(line_down_lighted, 0);
+                multi_param();
+              }
+              else
+              {
+                multi_param();
+              }
             }
           }
           else
@@ -323,30 +359,39 @@ void loop()
         setStr("MODULES KO",0,0,BLACK);
         updateDisplay();
       } 
-    }  
-  }
-  else
-  {
-    int ret = true;
-    for(int i=0; i<but8LED_number; i++)
-    {
-      Wire.beginTransmission(but8LED_address[i]);
-      int error = Wire.endTransmission();
-      if (error==0) module_ok[i] = true;
-      else  module_ok[i] = false;
-      delay(1); 
-    }  
-    if(modules_valides())
-    {
-      clearDisplay(WHITE);
-      updateDisplay();
-      setStr("MODULES OK",0,0,BLACK);
-      updateDisplay();
-      delay(2000);
-      upload_modules();
-      main_menu();
     }
+}
+
+void scan_modules()
+{
+  int ret = true;
+  for(int i=0; i<but8LED_number; i++)
+  {
+    Wire.beginTransmission(but8LED_address[i]);
+    int error = Wire.endTransmission();
+    if (error==0) module_ok[i] = true;
+    else  module_ok[i] = false;
+    delay(1); 
+  }  
+  if(modules_valides())
+  {
+    clearDisplay(WHITE);
+    updateDisplay();
+    setStr("MODULES OK",0,0,BLACK);
+    updateDisplay();
+    delay(2000);
+    upload_modules();
+    main_menu();
   }
+}
+
+void loop()
+{
+  if(config_loaded) listen_config();
+  if(refresh_menu) {upload_modules(); main_menu(); refresh_menu=false;}
+
+  if(modules_valides()) listen_modules();
+  else scan_modules();
   
   int rot = ReadRotary();
   if(rot!=0) select_menu(rot);
