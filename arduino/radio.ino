@@ -298,6 +298,7 @@ boolean modules_valides()
 
 void multi_param()
 {
+  Serial.println("----multi param----");
   if(line_up_mode==0)
   {
     Serial.println(param_lighted_up);
@@ -317,15 +318,19 @@ void multi_param()
   }
 }
 
-void transco_multi(int num, boolean line_choice)
+void transco_multi(int num, boolean line_choice, int num_module)
 {
+  Serial.println("----transco_multi----");
   // line up
   Serial.print("num : ");
   Serial.println(num);
+  Serial.print("num dans module : ");
   Serial.println(num%4);
-  if(line_choice)  {param_lighted_up = num%4; module_lighted_up = num/4;}
+  Serial.print("line choice : ");
+  Serial.println(line_choice);
+  if(line_choice)  {param_lighted_up = num%4; module_lighted_up = num_module;}
   // line down
-  else {param_lighted_down = 4 + num%4; module_lighted_down = num/4;}
+  else {param_lighted_down = 4 + num%4; module_lighted_down = num_module;}
   
 }
 
@@ -361,7 +366,7 @@ void listen_modules()
               if(line_up_mode==0)
               {
                 multi_param();
-                transco_multi(param_number+i*4, 1);
+                transco_multi(param_number+i*4, 1, i);
                 multi_param();
               }
               else
@@ -374,7 +379,7 @@ void listen_modules()
               if(line_down_mode==0)
               {
                 multi_param();
-                transco_multi(param_number+i*4, 0);
+                transco_multi(param_number+i*4, 0, i);
                 multi_param();
               }
               else
