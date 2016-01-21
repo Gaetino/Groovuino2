@@ -4,10 +4,10 @@
 //Generic information
 unsigned char satellite_type = 0; // 0 : but8led
 
-unsigned char satellite_mode = 1; //0 = Exclusif (un seul bouton allumé à la fois)
+unsigned char satellite_mode = 0; //0 = Exclusif (un seul bouton allumé à la fois)
 	                          //1 = Multi (plusieurs boutons allumés à la fois. Quand on clique sur un bouton déjà allumé, on l'éteint)
 		                  //2 = Exclusif temporaire (un seul bouton allumé uniquement quand on appuie dessus)
-			          //3 = Mode sauvegarde
+			          //3 = Mode slave
 
 int i2c_address ;
 
@@ -35,8 +35,11 @@ int dataPin = 4;
 //holder for infromation you're going to pass to shifting function
 byte data = 0; 
 
-int pin_but[8] = {16, 10, 7, 9, 14, 15, 1, 5};
-int LED_shiftout[8] = {5, 4, 1, 0, 7, 6, 3, 2};
+//int pin_but[8] = {16, 10, 7, 9, 14, 15, 1, 5};
+//int LED_shiftout[8] = {5, 4, 1, 0, 7, 6, 3, 2};
+
+int pin_but[8] = {5, 1, 15, 14, 9, 7, 10, 16};
+int LED_shiftout[8] = {2, 3, 6, 7, 0, 1, 4, 5};
 
 int pin_selector[4] = {A3,A2,A1,A0};
 
@@ -44,6 +47,13 @@ void setup() {
   //set pins to output because they are addressed in the main loop
   Serial.begin(9600);
   
+  for(int i = 0; i<4; i++)
+  {
+    pinMode(pin_selector[i],INPUT_PULLUP);
+  }
+
+  i2c_address = (1-digitalRead(pin_selector[0])) + ((1-digitalRead(pin_selector[1]))<<1) + ((1-digitalRead(pin_selector[2]))<<2) + ((1-digitalRead(pin_selector[3]))<<3);
+
   Wire.begin(i2c_address);
   Wire.onRequest(requestEvent);
   Wire.onReceive(receiveEvent);
@@ -60,12 +70,13 @@ void setup() {
   pinMode(20,INPUT_PULLUP);
   pinMode(21,INPUT_PULLUP);
 
-  for(int i = 0; i<4; i++)
-  {
-    pinMode(pin_selector[i],INPUT_PULLUP);
-  }
-  i2c_address = (1-digitalRead(pin_selector[0])) + ((1-digitalRead(pin_selector[1]))<<1) + ((1-digitalRead(pin_selector[2]))<<2) + ((1-digitalRead(pin_selector[3]))<<3);
+  digitalWrite(latchPin, 0);
+      //red LEDs
+      shiftOut(dataPin, clockPin,  0);
+      //no longer needs to listen for information
+      digitalWrite(latchPin, 1);
   
+    
 }
 
 void loop() {
@@ -75,6 +86,9 @@ void loop() {
     Serial.read();
     Serial.print("adrese : ");
     Serial.println(i2c_address);
+    Serial.print("mode : ");
+    Serial.println(satellite_mode);
+    
   }
   for(int i=0; i<8 ; i++)
   {
@@ -89,37 +103,48 @@ void loop() {
        ButState[i] = false;
     }
   }
+  data = 0;
+  for(int i=0; i<8 ; i++)
+  {
+     if(LEDState[i]) {data = data | (1<<LED_shiftout[i]);}
+  }
+  digitalWrite(latchPin, 0);
+  shiftOut(dataPin, clockPin,  data);
+  digitalWrite(latchPin, 1);
+  delay(1);
+  digitalWrite(latchPin, 0);
+  shiftOut(dataPin, clockPin,  0);
+  digitalWrite(latchPin, 1);
+  delay(8);
 }
 
 void ButPress(unsigned char numBut)
 { 
-  //Serial.println("Butpress");
+  Serial.println("Butpress");
   switch(satellite_mode)
   {
     case 0:
-      digitalWrite(latchPin, 0);
-      //red LEDs
-      shiftOut(dataPin, clockPin,  1<<LED_shiftout[numBut]);
-      //no longer needs to listen for information
-      digitalWrite(latchPin, 1);
+      
+      for(int i=0; i<8 ; i++) {LEDState[i] = 0;}
+      LEDState[numBut] = 1;
+      Serial.println(LEDState[0]);
+      Serial.println(LEDState[1]);
       message[1] = numBut;
       message[2] = 1;
       send_state = true;
       break;
       
     case 1:
-      if(LEDState[numBut]) LEDState[numBut] = false;
-      else LEDState[numBut] = true;
-      byte data = 0;
-      for(int i=0; i<8 ; i++)
-      {
-        if(LEDState[i]) data = data | (1<<LED_shiftout[i]);
-      }
-      digitalWrite(latchPin, 0);
-      shiftOut(dataPin, clockPin,  data);
-      digitalWrite(latchPin, 1);
+      if(LEDState[numBut]) LEDState[numBut] = 0;
+      else LEDState[numBut] = 1;
       message[1] = numBut;
       message[2] = LEDState[numBut];
+      send_state = true;
+      break;
+      
+    case 3:
+      message[1] = numBut;
+      message[2] = 1;
       send_state = true;
       break;
   }
@@ -187,6 +212,7 @@ void requestEvent()
 {
   if(send_state)
   {
+    Serial.println("send");
     message[0] = 1;
     Wire.write(message,3);
     send_state = false;
@@ -203,8 +229,23 @@ void receiveEvent(int howMany)
 {
   if(Wire.read()==255) 
   {
+    //Serial.print("received : ");
     int input = Wire.read();
-    if(input==0) satellite_mode = Wire.read();    // receive byte as an integer
-    if(input==1) ButPress(Wire.read());
+    //Serial. println(input);
+    if(input==0) 
+    {
+      satellite_mode = Wire.read();    // receive byte as an integer
+      //Serial.print("mode : ");
+      //Serial.println(satellite_mode);
+    }
+    if(input==1) {
+      int numBut = Wire.read();
+      if(LEDState[numBut]) LEDState[numBut] = false;
+      else LEDState[numBut] = true;
+      data = 0;
+    }
+    if(input==2) {
+      for(int i=0; i<8 ; i++) LEDState[i] = 0;
+    }
   }
 }
