@@ -56,6 +56,7 @@ void setup()
 
 void upload_modules()
 {
+  Serial.println("----upload_modules----");
   clearDisplay(WHITE);
   updateDisplay();
   setStr("UP MODULES",0,0,BLACK);
@@ -65,13 +66,31 @@ void upload_modules()
   for(int i=0; i<but8LED_number; i++)
   {
     write_module(but8LED_address[i],but8LED_mode[i]);
+    if(multi_active)
+    {
+      Serial.println("multi : reset");
+      Wire.beginTransmission(but8LED_address[i]);
+      Wire.write(255);
+      Wire.write(2);
+      Wire.endTransmission();
+    }
   }
+  if(multi_active)
+  {
+    Serial.println("multi : init");
+    Wire.beginTransmission(but8LED_address[0]);
+    Wire.write(255);
+    Wire.write(1);
+    Wire.write(0);
+    Wire.endTransmission();
+  }
+  
 }
 
 
 boolean listen_config()
 {
-  Serial.println("listen config");
+  Serial.println("----listen config----");
   boolean ret = false;
   
   while(Serial1.available())
@@ -134,10 +153,12 @@ boolean listen_config()
         Serial.print("line_down_mode : ");
         Serial.println(line_down_mode);
         
+        refresh_menu=true;
+        
         for(int i = 0; i<nb_modules; i++)
         {
           but8LED_address[i] = Serial1.read();
-          but8LED_mode[i] = 1;
+          but8LED_mode[i] = 3;
           Serial.print("module ");
           Serial.println(i);
           Serial.print("but8LED_address : ");
@@ -155,6 +176,7 @@ boolean listen_config()
 
 void load_config()
 {
+  Serial.println("----load config----");
   clearDisplay(WHITE);
   updateDisplay();
   setStr("LOAD CONFIG",0,0,BLACK);
@@ -277,10 +299,12 @@ void select_menu(int sens)
 
 void write_module(byte module_num, byte mode_num)
 {
+  Serial.println("----write_module----");
   Serial.print("adresse : ");
   Serial.println(module_num);
   Wire.beginTransmission(module_num);
   Wire.write(255);
+  Wire.write(0);
   Serial.print("mode : ");
   Serial.println(mode_num);
   Wire.write(mode_num);
@@ -296,26 +320,26 @@ boolean modules_valides()
   return ret;
 }
 
-void multi_param()
+void multi_param_up()
 {
-  Serial.println("----multi param----");
-  if(line_up_mode==0)
-  {
+    Serial.println("----send param----");
     Serial.println(param_lighted_up);
     Wire.beginTransmission(but8LED_address[module_lighted_up]);
     Wire.write(255);
     Wire.write(1);
     Wire.write(param_lighted_up);
     Wire.endTransmission();
-  }
-  else
-  {
+}
+
+void multi_param_down()
+{
+    Serial.println("----send param----");
+    Serial.println(param_lighted_down);
     Wire.beginTransmission(but8LED_address[module_lighted_down]);
     Wire.write(255);
     Wire.write(1);
     Wire.write(param_lighted_down);
     Wire.endTransmission();
-  }
 }
 
 void transco_multi(int num, boolean line_choice, int num_module)
@@ -363,28 +387,46 @@ void listen_modules()
           {
             if(param_number<4)
             {
+              Serial.println("line up pressed");
               if(line_up_mode==0)
               {
-                multi_param();
-                transco_multi(param_number+i*4, 1, i);
-                multi_param();
+                Serial.print("param lighted up : ");
+                Serial.println(param_lighted_up + module_lighted_up*4);
+                Serial.print("param number : ");
+                Serial.println(param_number+i*4);
+                if((param_lighted_up+module_lighted_up*4)!=(param_number+i*4)) 
+                {
+                  multi_param_up();
+                  transco_multi(param_number+i*4, 1, i);
+                  multi_param_up();
+                }
               }
               else
               {
-                multi_param();
+                transco_multi(param_number+i*4, 1, i);
+                multi_param_up();
               }
             }
             else
             {
+              Serial.println("line up pressed");
               if(line_down_mode==0)
               {
-                multi_param();
-                transco_multi(param_number+i*4, 0, i);
-                multi_param();
+                Serial.print("param lighted down : ");
+                Serial.println(param_lighted_down + module_lighted_down*4);
+                Serial.print("param number : ");
+                Serial.println(param_number+i*4);
+                if((param_lighted_down+module_lighted_down*4)!=(param_number+i*4)) 
+                {
+                  multi_param_down();
+                  transco_multi(param_number+i*4, 0, i);
+                  multi_param_down();
+                }
               }
               else
               {
-                multi_param();
+                transco_multi(param_number+i*4, 0, i);
+                multi_param_down();
               }
             }
           }
@@ -414,7 +456,7 @@ void listen_modules()
 
 void scan_modules()
 {
-  //Serial.println("----scan modules----");
+  Serial.println("----scan modules----");
   int ret = true;
   for(int i=0; i<but8LED_number; i++)
   {
@@ -442,7 +484,8 @@ void scan_modules()
 
 void loop()
 {
-  //if(config_loaded) listen_config();
+  if(config_loaded)
+  {
   if(refresh_menu) {upload_modules(); main_menu(); refresh_menu=false;}
 
   if(modules_valides()) listen_modules();
@@ -513,6 +556,7 @@ void loop()
       }
       break;
     }
+  }
   }
 }
 
