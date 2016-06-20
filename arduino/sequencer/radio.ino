@@ -16,6 +16,7 @@ int numscreen = 0; // 0 = menu principal
 
 int but8LED_address[2] = {0,2};
 int but8LED_mode[2] = {0,0};
+int enco4_address = 1;
 
 int sample_num = 0;
 boolean sequence[8][8];
@@ -157,7 +158,7 @@ void write_module(byte module_num, byte mode_num)
 boolean modules_valides()
 {
   boolean ret = 1;
-  for(int i = 0; i<2; i++)
+  for(int i = 0; i<3; i++)
   {
    ret *= module_ok[i];  
   }
@@ -278,7 +279,7 @@ void listen_modules()
   for(int i = 0; i<2; i++)
   {
     Wire.requestFrom(but8LED_address[i], 3);    
-    delay(3);
+    delay(2);
     
     byte changed = 0;
     byte param_number = 0;
@@ -294,7 +295,7 @@ void listen_modules()
       {
         set_param(i, param_number, param_value);
       }
-      delay(2);
+      delay(1);
     }
     else
     {
@@ -307,6 +308,42 @@ void listen_modules()
     } 
   }
   delay(2);
+
+  Wire.requestFrom(1, 3);    
+  delay(2);
+  
+  byte changed = 0;
+  byte param_number = 0;
+  byte param_value = 0; 
+    
+  if(Wire.available())    // slave may send less than requested
+  { 
+    module_ok[2] = true;
+    changed = Wire.read();
+    param_number = Wire.read();
+    param_value = Wire.read();
+    if(changed > 0) 
+    {
+      Serial.println(changed);
+      Serial.println(param_number);
+      Serial.println(param_value);
+      Serial1.write(255);
+      Serial1.write(1);
+      Serial1.write(0);
+      Serial1.write(param_number);
+      Serial1.write(param_value);
+    }
+    delay(2);
+  }
+  else
+    {
+      Serial.println("not responding");
+      module_ok[2] = false;
+      clearDisplay(WHITE);
+      updateDisplay();
+      setStr("MODULES KO",0,0,BLACK);
+      updateDisplay();
+    } 
 }
 
 void scan_modules()
@@ -321,6 +358,13 @@ void scan_modules()
     else  module_ok[i] = false;
     delay(1); 
   }  
+  
+  Wire.beginTransmission(enco4_address);
+  int error = Wire.endTransmission();
+  if (error==0) module_ok[2] = true;
+  else  module_ok[2] = false;
+  delay(1); 
+  
   if(modules_valides())
   {
     clearDisplay(WHITE);
