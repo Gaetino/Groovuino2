@@ -4,7 +4,7 @@
 //Generic information
 unsigned char satellite_type = 0; // 0 : but8led
 
-unsigned char satellite_mode = 0; //0 = Exclusif (un seul bouton allumé à la fois)
+unsigned char satellite_mode = 1; //0 = Exclusif (un seul bouton allumé à la fois)
 	                          //1 = Multi (plusieurs boutons allumés à la fois. Quand on clique sur un bouton déjà allumé, on l'éteint)
 		                  //2 = Exclusif temporaire (un seul bouton allumé uniquement quand on appuie dessus)
 			          //3 = Mode slave
@@ -84,7 +84,7 @@ void loop() {
   if(Serial.available())
   {
     Serial.read();
-    Serial.print("adrese : ");
+    Serial.print("adresse : ");
     Serial.println(i2c_address);
     Serial.print("mode : ");
     Serial.println(satellite_mode);
@@ -127,8 +127,6 @@ void ButPress(unsigned char numBut)
       
       for(int i=0; i<8 ; i++) {LEDState[i] = 0;}
       LEDState[numBut] = 1;
-      Serial.println(LEDState[0]);
-      Serial.println(LEDState[1]);
       message[1] = numBut;
       message[2] = 1;
       send_state = true;
@@ -139,6 +137,13 @@ void ButPress(unsigned char numBut)
       else LEDState[numBut] = 1;
       message[1] = numBut;
       message[2] = LEDState[numBut];
+      send_state = true;
+      break;
+      
+    case 2:
+      LEDState[numBut] = 1;
+      message[1] = numBut;
+      message[2] = 1;
       send_state = true;
       break;
       
@@ -159,6 +164,13 @@ void ButRelease(unsigned char numBut)
   
   case 0:
 	break;
+
+  case 2:
+      LEDState[numBut] = 0;
+      message[1] = numBut;
+      message[2] = 0;
+      send_state = true;
+      break;
   }
 }
  
@@ -229,9 +241,9 @@ void receiveEvent(int howMany)
 {
   if(Wire.read()==255) 
   {
-    //Serial.print("received : ");
+    Serial.print("received : ");
     int input = Wire.read();
-    //Serial. println(input);
+    Serial. println(input);
     if(input==0) 
     {
       satellite_mode = Wire.read();    // receive byte as an integer
@@ -245,7 +257,11 @@ void receiveEvent(int howMany)
       data = 0;
     }
     if(input==2) {
-      for(int i=0; i<8 ; i++) LEDState[i] = 0;
+      for(int i=0; i<8 ; i++) 
+      {
+        LEDState[i] = false;
+        //ButState[i] = false;
+      }
     }
   }
 }
