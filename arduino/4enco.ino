@@ -3,6 +3,8 @@
 int value[4] = {0,0,0,0};
 int states[4] = {0,0,0,0};
 
+boolean state_send[4] = {0,0,0,0};
+
 //Generic information
 unsigned char satellite_type = 1; // 0 : but8led
                                   // 1 : 4enco
@@ -66,13 +68,13 @@ void loop() {
   read_encoder();
   read_encoder2();
   value[0] -= states[0];
-  if(states[0] != 0) Serial.println(value[0]);
+  if(states[0] != 0) {Serial.println(value[0]); state_send[0]=true;}
   value[1] -= states[1];
-  if(states[1] != 0) Serial.println(value[1]);
+  if(states[1] != 0) {Serial.println(value[1]); state_send[1]=true;}
   value[2] -= states[2];
-  if(states[2] != 0) Serial.println(value[2]);
+  if(states[2] != 0) {Serial.println(value[2]); state_send[2]=true;}
   value[3] += states[3];
-  if(states[3] != 0) Serial.println(value[3]);
+  if(states[3] != 0) {Serial.println(value[3]); state_send[3]=true;}
  
 }
 
@@ -112,23 +114,21 @@ void read_encoder2()
 
 void requestEvent()
 {
-  for(int i=0, i<4, i++)
+  message[0] = 0;
+  for(int i=0; i<4; i++)
   {
-    if(states[i])
+    if(state_send[i])
     {
       Serial.println("send");
       message[0] = 1;
       message[1] = i;
       message[2] = value[i];
-      Wire.write(message,3);
-      states[i] = false;
+      
+      state_send[i] = false;
     }
   }
-  else
-  {
-    message[0] = 0;
-    Wire.write(message,3);
-  }
+  Wire.write(message,3);
+  Serial.println(message[0]);
 }
 
 
