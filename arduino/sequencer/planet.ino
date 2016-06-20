@@ -84,6 +84,8 @@ int multi_address[8] = {0,2,0,0,0,0,0,0};
 int freq = 800;
 float res = 0.707; 
 
+float cal;
+
 
 void setup() {
   Serial.begin(9600);
@@ -173,6 +175,29 @@ void loop() {
             biquad1.setLowpass(0, freq, res);
           }
         }*/
+      }
+      if(test==1)
+      {
+        unsigned char module_number = Serial3.read();
+        unsigned char param_number = Serial3.read();
+        unsigned char param_value = Serial3.read();
+
+        /*Serial.print("module num ");
+        Serial.print(module_number);
+        Serial.print(" - param num ");
+        Serial.print(param_number);
+        Serial.print(" - val ");
+        Serial.println(param_value);*/
+        if(param_number==0) {
+            freq = param_value*param_value;
+            biquad1.setLowpass(0, freq, res);
+          }
+          if(param_number==3) {
+            cal = param_value;
+            res = cal/127;
+            //freq = param_value*param_value;
+            biquad1.setLowpass(0, freq, res);
+          }
       }
     }
   }
